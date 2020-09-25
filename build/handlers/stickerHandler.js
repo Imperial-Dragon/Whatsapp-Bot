@@ -14,7 +14,7 @@ const wa_automate_1 = require("@open-wa/wa-automate");
 const message_1 = require("@open-wa/wa-automate/dist/api/model/message");
 const fs_1 = require("fs");
 const config_1 = require("../config");
-const uploadToGiffy_1 = require("../helpers/uploadToGiffy");
+const videoToWebp_1 = require("../helpers/videoToWebp");
 function stickerHandler(client, message) {
     return __awaiter(this, void 0, void 0, function* () {
         let quotedMsg = message.quotedMsg;
@@ -39,34 +39,29 @@ function stickerHandler(client, message) {
                     client.reply(message.chatId, "Internal error occured. Sorry :(", message.id);
                     return;
                 }
-                let api_key = (process.env.GIFFY_API_KEY) ? process.env.GIFFY_API_KEY : '';
-                if (api_key === '') {
-                    console.log("Error ! Could not found Giffy API Key, set GIFFY_API_KEY environment variable and restart application");
-                    return;
-                }
-                let postData = {
-                    api_key: api_key,
-                    file: {
-                        value: fs_1.createReadStream(filename),
-                        options: {
-                            filename: filename,
-                            contentType: 'image/gif'
-                        }
-                    }
-                };
-                uploadToGiffy_1.uploadToGiffy(postData).then((gifUrl) => __awaiter(this, void 0, void 0, function* () {
-                    client.reply(message.chatId, "Hold up .. It may take some time ...", message.id);
-                    setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                        client.sendGiphyAsSticker(message.from, gifUrl).then((val) => {
-                            console.log("Gif to sticker conversion successful !");
-                        }).catch(err => {
+                let outputFile = 'output';
+                const result = videoToWebp_1.videoToWebP(filename, outputFile);
+                result.then(response => {
+                    fs_1.readFile(`${outputFile}.webp`, (err, data) => {
+                        if (err) {
                             console.log(err);
+                            client.reply(message.chatId, "Internal error occured. Sorry :(", message.id);
+                            return;
+                        }
+                        let base64Webp = `${data.toString('base64')}`;
+                        client.sendRawWebpAsSticker(message.from, base64Webp)
+                            .then((val) => {
+                            console.log(`Gif to sicker conversion successful! ${val}`);
+                        }).catch((err) => {
+                            console.log(`Failed to send sticker!`);
+                            console.log(err);
+                            client.reply(message.chatId, "Gif Cannot be converted. Sorry :(", message.id);
                         });
-                    }), 15000);
-                })).catch((err) => __awaiter(this, void 0, void 0, function* () {
+                    });
+                }).catch(err => {
                     console.log(err);
-                    yield client.reply(message.from, "Internal error occured. Sorry :(", message.id);
-                }));
+                    client.reply(message.chatId, "Internal error occured. Sorry :(", message.id);
+                });
             });
         }
         else {

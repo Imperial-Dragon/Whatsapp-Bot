@@ -1,3 +1,6 @@
 node_modules
 .env
 temp.mp4
+output.gif
+output.webp
+Andy.data.json
